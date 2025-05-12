@@ -57,11 +57,12 @@ prometheus_client – Python library to expose metrics
 ✅ Dynamic dashboards and alerts using Grafana
 
 ## 📷 Demo Screenshots
+![demo1](https://github.com/user-attachments/assets/ec554a48-e3a7-4e6b-9e26-296d303e7e69)
 
-![alt text](demo1.jpg)
+![demo2](https://github.com/user-attachments/assets/1322cf19-6914-4b41-8688-83c5e35ef641)
 
-![alt text](demo2.jpg)
+![demo3](https://github.com/user-attachments/assets/32156545-0cee-4503-a6c7-fa1d644e355b)
 
-![alt text](demo3.jpg)
+![demo4](https://github.com/user-attachments/assets/75344ef3-97e3-4fc0-b978-e6cc543499ed)
 
-![alt text](demo4.jpg)
+
