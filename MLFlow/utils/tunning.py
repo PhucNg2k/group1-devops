@@ -1,0 +1,74 @@
+import optuna
+import mlflow
+import mlflow.sklearn
+import xgboost as xgb
+from functools import partial
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+def objective(trial, X_train, y_train, X_val, y_val):
+    n_estimators = trial.suggest_int("n_estimators", 50, 500)
+    max_depth = trial.suggest_int("max_depth", 3, 15)
+    learning_rate = trial.suggest_float("learning_rate", 0.01, 0.3)
+    subsample = trial.suggest_float("subsample", 0.5, 1.0)
+    colsample_bytree = trial.suggest_float("colsample_bytree", 0.5, 1.0)
+    gamma = trial.suggest_float("gamma", 0, 1.0)
+    min_child_weight = trial.suggest_int("min_child_weight", 1, 10)
+    reg_alpha = trial.suggest_float("reg_alpha", 1e-5, 1.0, log=True)
+    reg_lambda = trial.suggest_float("reg_lambda", 1e-5, 1.0, log=True)
+
+    model = xgb.XGBClassifier(
+        n_estimators=n_estimators,
+        max_depth=max_depth,
+        learning_rate=learning_rate,
+        subsample=subsample,
+        colsample_bytree=colsample_bytree,
+        gamma=gamma,
+        min_child_weight=min_child_weight,
+        reg_alpha=reg_alpha,
+        reg_lambda=reg_lambda,
+        random_state=42,
+        # Không truyền eval_metric ở đây nữa
+    )
+
+    # Huấn luyện mô hình với evals để theo dõi loss
+    evals = [(X_train, y_train), (X_val, y_val)]
+    model.fit(X_train, y_train, eval_set=evals, verbose=False)
+
+    # Dự đoán và tính toán các metric
+    y_pred = model.predict(X_val)
+    accuracy = accuracy_score(y_val, y_pred)
+    f1 = f1_score(y_val, y_pred)
+    precision = precision_score(y_val, y_pred)
+    recall = recall_score(y_val, y_pred)
+
+    # Lấy giá trị loss từ evals_result
+    val_loss = model.evals_result().get('validation_1', {}).get('logloss', [-1])[-1]  # Lấy giá trị logloss cuối cùng từ validation set
+
+    return accuracy, f1, precision, recall, val_loss
+
+def tune_and_log(X_train, y_train, X_val, y_val, run_name, n_trials=10):
+    mlflow.set_experiment("Hyperparameter Tuning")
+    
+    def objective_with_mlflow(trial, run_name):
+        with mlflow.start_run(run_name=run_name, nested=True):
+            accuracy, f1, precision, recall, val_loss = objective(trial, X_train, y_train, X_val, y_val)
+            mlflow.log_params(trial.params)
+            mlflow.log_metric("accuracy", accuracy)
+            mlflow.log_metric("f1_score", f1)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
+            mlflow.log_metric("val_loss", val_loss)  # Ghi lại val_loss
+        return accuracy
+
+    objective_with_run_name = partial(objective_with_mlflow, run_name=run_name)
+
+    study = optuna.create_study(direction="maximize")
+    study.optimize(lambda trial: objective_with_run_name(trial), n_trials=n_trials)
+
+    best_params = study.best_params
+    best_accuracy = study.best_value
+
+    print(f"Best params: {best_params}")
+    print(f"Best accuracy: {best_accuracy}")
+
+    return best_params

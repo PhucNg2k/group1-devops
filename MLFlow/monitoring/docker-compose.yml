@@ -1,0 +1,54 @@
+version: '3.7'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - 9090:9090
+    networks:
+      - internal
+    volumes:
+      - prometheus_volume:/prometheus/
+      - ./prometheus/:/etc/prometheus/
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  pushgateway:
+    image: prom/pushgateway:v1.0.0
+    networks:
+      - internal
+    ports:
+     - 9091:9091
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    networks:
+      - internal
+    depends_on:
+      - prometheus
+    volumes:
+      - grafana_volume:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=ml_monitor
+
+  node_exporter:
+    image: prom/node-exporter
+    ports:
+      - 9100:9100
+    networks:
+      - internal
+    expose:
+      - "9100"
+    command:
+      - '--web.listen-address=:9100'
+volumes:
+  prometheus_volume:
+    external: false
+  grafana_volume:
+    external: false
+
+networks:
+  internal:
